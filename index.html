@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Simulador Santander</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f2f5;min-height:100vh}
+  .nav{display:flex;align-items:center;background:#EC0000;padding:0}
+  .nav-logo{padding:0 24px}
+  .nav-logo-text{color:#fff;font-size:15px;font-weight:800;letter-spacing:.08em}
+  .nav-logo-sub{color:rgba(255,255,255,.6);font-size:11px}
+  .nav-sep{width:1px;height:20px;background:rgba(255,255,255,.3);margin:0 4px}
+  .nav-btn{padding:14px 24px;color:rgba(255,255,255,.7);font-size:13px;cursor:pointer;border:none;background:transparent;transition:.2s}
+  .nav-btn:hover{color:#fff;background:rgba(255,255,255,.12)}
+  .nav-btn.active{color:#fff;border-bottom:3px solid #fff;font-weight:700}
+  .view{display:none;padding:28px 32px;max-width:1200px;margin:0 auto}
+  .view.active{display:block}
+  #view-client.active{padding:16px 24px}
+  #view-cotiz.active{padding:24px 32px}
+
+  /* ADMIN */
+  .admin-top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:24px}
+  .acard{background:#fff;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .acard-title{font-size:11px;font-weight:600;color:#888;letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px}
+  .big-input{width:100%;font-size:20px;font-weight:700;font-family:'Courier New',monospace;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;color:#1a1a2e;outline:none}
+  .big-input:focus{border-color:#EC0000}
+  .com-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .com-btn{flex:1;min-width:60px;padding:8px;border:1.5px solid #e0e0e0;border-radius:8px;background:#fff;color:#666;cursor:pointer;font-size:13px;font-weight:500;transition:.15s}
+  .com-btn:hover{border-color:#EC0000;color:#EC0000}
+  .com-btn.active{background:#EC0000;border-color:#EC0000;color:#fff}
+  .metric-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .metric{background:#f7f8fa;border-radius:8px;padding:10px 14px}
+  .metric label{font-size:11px;color:#999;display:block;margin-bottom:3px}
+  .metric span{font-size:16px;font-weight:700;font-family:'Courier New',monospace;color:#1a1a2e}
+  .version-badge{display:inline-block;background:#f0f2f5;border:1px solid #e0e0e0;border-radius:6px;font-size:10px;color:#888;padding:3px 8px;margin-top:8px}
+  .gen-btn{display:block;margin:12px 0 0;padding:13px;background:#EC0000;border:none;border-radius:10px;font-size:14px;font-weight:700;color:#fff;cursor:pointer;width:100%;transition:.15s}
+  .gen-btn:hover{background:#c00000}
+  .section-label{font-size:11px;font-weight:700;color:#888;letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px}
+  .lines-section{margin-bottom:20px}
+  .lines-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .line-group{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);overflow:hidden}
+  .line-group-head{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee}
+  .line-group-head.uva{background:#fff0f0}
+  .line-group-head.fija{background:#f0f0f0}
+  .lg-name{font-size:13px;font-weight:700;color:#1a1a2e}
+  .lg-tna{font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
+  .tna-uva{background:#fff0f0;color:#EC0000;border:1px solid #f5c0c0}
+  .tna-fija{background:#e8e8e8;color:#333;border:1px solid #ccc}
+  .rtable{width:100%;border-collapse:collapse}
+  .rtable th{font-size:10px;color:#999;font-weight:600;text-align:right;padding:7px 14px;border-bottom:1px solid #f0f0f0;text-transform:uppercase;letter-spacing:.05em}
+  .rtable th:first-child{text-align:left}
+  .rtable td{padding:8px 14px;font-size:12px;text-align:right;border-bottom:1px solid #f8f8f8;color:#333}
+  .rtable td:first-child{text-align:left;color:#888;font-size:11px}
+  .rtable tr:last-child td{border-bottom:none}
+  .cohef-td{font-family:'Courier New',monospace;font-size:11px;color:#bbb}
+  .cuota-td{font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#1a1a2e}
+  .uva-note-bar{font-size:10px;color:#EC0000;padding:6px 14px;background:#fff0f0;border-top:1px solid #f5c0c0;font-style:italic}
+
+  /* CLIENT */
+  .client-cards-wrap{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+  .client-card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.12);overflow:hidden;flex:1;min-width:200px;max-width:320px}
+  .client-header{background:#EC0000;color:#fff;text-align:center;padding:44px 16px 10px;position:relative}
+  .client-header .bank-logo{font-size:15px;font-weight:800;letter-spacing:.05em;color:#fff;margin-bottom:1px}
+  .client-header .est-title{font-size:10px;font-weight:700;color:rgba(255,255,255,.85)}
+  .client-linea-head{text-align:center;padding:7px 14px;background:#EC0000;border-bottom:1px solid rgba(255,255,255,.2)}
+  .client-linea-badge{display:inline-block;font-size:10px;font-weight:800;padding:3px 12px;border-radius:4px;letter-spacing:.06em}
+  .badge-uva{background:#fff0f0;color:#EC0000}
+  .badge-fija{background:#fff;color:#333}
+  .client-section{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #eee}
+  .client-field{padding:7px 10px}
+  .client-field:first-child{border-right:1px solid #eee}
+  .cf-label{font-size:8px;font-weight:700;color:#888;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
+  .cf-val{font-size:12px;font-weight:800;font-family:'Courier New',monospace;color:#1a1a2e}
+  .client-note{padding:4px 10px;font-size:8px;border-bottom:1px solid #eee;line-height:1.4}
+  .client-note.uva{background:#fff0f0;color:#EC0000;font-style:italic}
+  .client-note.fija{color:#aaa}
+  .client-table-head{display:grid;grid-template-columns:1fr 1fr;background:#EC0000}
+  .client-table-head span{font-size:8px;font-weight:700;color:#fff;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;text-align:center}
+  .client-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0}
+  .client-row:last-child{border-bottom:none}
+  .client-row span{padding:5px 10px;text-align:center;font-size:11px}
+  .cr-plazo{font-weight:600;color:#555;font-size:10px}
+  .cr-cuota{font-family:'Courier New',monospace;font-weight:800;color:#1a1a2e}
+  .client-row:nth-child(even){background:#fafafa}
+  .print-btn{display:block;margin:10px 0 0;padding:8px 20px;background:#EC0000;border:none;border-radius:10px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;transition:.15s}
+  .print-btn:hover{background:#c00000}
+
+  /* ===== COTIZACION ===== */
+  .cotiz-layout{display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start}
+  .cotiz-form-card{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.08);overflow:hidden}
+  .cotiz-form-head{background:#EC0000;padding:14px 18px}
+  .cotiz-form-head-title{color:#fff;font-size:13px;font-weight:800;letter-spacing:.04em}
+  .cotiz-form-head-sub{color:rgba(255,255,255,.7);font-size:10px;margin-top:2px}
+  .cotiz-form-body{padding:16px 18px}
+  .cotiz-field{margin-bottom:14px}
+  .cotiz-label{font-size:10px;font-weight:700;color:#888;letter-spacing:.08em;text-transform:uppercase;margin-bottom:5px;display:block}
+  .cotiz-select{width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;font-weight:600;color:#1a1a2e;background:#fff;outline:none;cursor:pointer}
+  .cotiz-select:focus{border-color:#EC0000}
+  .cotiz-text-input{width:100%;padding:9px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;color:#1a1a2e;background:#fff;outline:none}
+  .cotiz-text-input:focus{border-color:#EC0000}
+  .cotiz-cuotas-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+  .cotiz-cuota-field{background:#f7f8fa;border-radius:8px;padding:8px 10px}
+  .cotiz-cuota-label{font-size:9px;font-weight:700;color:#aaa;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;display:block}
+  .cotiz-cuota-input{width:100%;border:none;background:transparent;font-size:13px;font-weight:700;font-family:'Courier New',monospace;color:#1a1a2e;outline:none}
+  .cotiz-cuota-input::placeholder{color:#ccc;font-weight:400}
+  .cotiz-divider{height:1px;background:#f0f0f0;margin:14px 0}
+  .cotiz-action-row{display:flex;gap:8px}
+  .cotiz-btn{flex:1;padding:11px;border:none;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}
+  .cotiz-btn-primary{background:#EC0000;color:#fff}
+  .cotiz-btn-primary:hover{background:#c00000}
+  .cotiz-btn-secondary{background:#f0f2f5;color:#555;border:1.5px solid #e0e0e0}
+  .cotiz-btn-secondary:hover{background:#e8eaed;color:#333}
+  .cotiz-btn-excel{background:#1a7a3c;color:#fff}
+  .cotiz-btn-excel:hover{background:#155f30}
+
+  /* Preview panel */
+  .cotiz-preview-wrap{position:relative}
+  .cotiz-preview-empty{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.07);padding:48px 24px;text-align:center}
+  .cotiz-preview-empty-icon{font-size:36px;margin-bottom:12px;opacity:.3}
+  .cotiz-preview-empty-text{font-size:13px;color:#bbb}
+  .cotiz-preview-card{background:#fff;border-radius:12px;box-shadow:0 2px 16px rgba(0,0,0,.13);overflow:hidden;max-width:420px;margin:0 auto}
+  .cq-header{background:#EC0000;padding:20px 20px 14px;position:relative}
+  .cq-header-date{position:absolute;top:8px;right:12px;font-size:9px;color:rgba(255,255,255,.5)}
+  .cq-bank-logo{font-size:16px;font-weight:800;letter-spacing:.06em;color:#fff}
+  .cq-bank-sub{font-size:10px;color:rgba(255,255,255,.75);margin-top:1px;font-weight:600;letter-spacing:.04em}
+  .cq-badge-row{background:#EC0000;padding:6px 20px 10px;border-bottom:1px solid rgba(255,255,255,.15)}
+  .cq-badge-label{font-size:9px;color:rgba(255,255,255,.55);font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+  .cq-linea-badge{display:inline-block;font-size:10px;font-weight:800;padding:3px 14px;border-radius:4px;letter-spacing:.06em}
+  .cq-montos-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #eee}
+  .cq-monto-field{padding:9px 14px}
+  .cq-monto-field:first-child{border-right:1px solid #eee}
+  .cq-monto-label{font-size:8px;font-weight:700;color:#aaa;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+  .cq-monto-val{font-size:13px;font-weight:800;font-family:'Courier New',monospace;color:#1a1a2e}
+  .cq-note{padding:5px 14px;font-size:8px;line-height:1.4;border-bottom:1px solid #eee}
+  .cq-note.uva{background:#fff0f0;color:#EC0000;font-style:italic}
+  .cq-note.fija{color:#aaa}
+  .cq-table-head{display:grid;grid-template-columns:1fr 1fr;background:#EC0000}
+  .cq-table-head span{font-size:8px;font-weight:700;color:#fff;letter-spacing:.07em;text-transform:uppercase;padding:6px 14px;text-align:center}
+  .cq-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0}
+  .cq-row:last-child{border-bottom:none}
+  .cq-row:nth-child(even){background:#fafafa}
+  .cq-row span{padding:7px 14px;text-align:center}
+  .cq-plazo{font-weight:600;color:#666;font-size:10px}
+  .cq-cuota-val{font-family:'Courier New',monospace;font-weight:800;font-size:12px;color:#1a1a2e}
+  .cq-cuota-val.empty{color:#ccc;font-weight:400;font-size:11px}
+  .cq-footer{padding:8px 14px;background:#f7f8fa;border-top:1px solid #eee}
+  .cq-footer-text{font-size:8px;color:#bbb;text-align:center}
+  .cotiz-export-row{display:flex;gap:8px;margin-top:12px;max-width:420px;margin-left:auto;margin-right:auto}
+
+  @media print{
+    .nav,.admin-top,.lines-section,.gen-btn,.print-btn,.view:not(#view-client),.cotiz-form-card,.cotiz-export-row,.section-label{display:none!important}
+    body{background:#fff}
+    #view-client{display:block!important;max-width:100%;padding:0}
+    .client-card{box-shadow:none;border-radius:0}
+  }
+  @media(max-width:700px){
+    .cotiz-layout{grid-template-columns:1fr}
+    .lines-grid{grid-template-columns:1fr}
+    .admin-top{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+<div class="nav">
+  <div class="nav-logo">
+    <div class="nav-logo-text">SANTANDER</div>
+    <div class="nav-logo-sub">Simulador Prendarios</div>
+  </div>
+  <div class="nav-sep"></div>
+  <button class="nav-btn active" id="btn-admin" onclick="switchView('admin')">Panel de tasas</button>
+  <button class="nav-btn" id="btn-client" onclick="switchView('client')">Vista cliente</button>
+  <button class="nav-btn" id="btn-cotiz" onclick="switchView('cotiz')">Cotización</button>
+</div>
+
+<!-- ADMIN -->
+<div id="view-admin" class="view active">
+  <div class="admin-top">
+    <div class="acard">
+      <div class="acard-title">Monto bruto a solicitar</div>
+      <input class="big-input" id="monto" type="text" value="3.725.000" oninput="fmtMonto(this);renderAll()"/>
+      <div class="com-row">
+        <button class="com-btn active" data-v="0.06" onclick="setComision(this)">6%</button>
+        <button class="com-btn" data-v="0.07" onclick="setComision(this)">7%</button>
+        <button class="com-btn" data-v="0.08" onclick="setComision(this)">8%</button>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-title">Resultado</div>
+      <div class="metric-row">
+        <div class="metric"><label>Tu cobro</label><span id="cobro">—</span></div>
+        <div class="metric"><label>Neto al cliente</label><span id="neto">—</span></div>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-title">Accesos rápidos</div>
+      <button class="gen-btn" onclick="switchView('client')">Vista cliente →</button>
+      <button class="gen-btn" style="margin-top:8px;background:#444" onclick="switchView('cotiz')">Cotización manual →</button>
+      <div class="version-badge">SANTANDER · V1 · 12/06/2026</div>
+    </div>
+  </div>
+  <div class="lines-section">
+    <div class="section-label">Línea UVA</div>
+    <div class="lines-grid" id="grid-uva"></div>
+  </div>
+  <div class="lines-section">
+    <div class="section-label">Línea ARS (Fija)</div>
+    <div class="lines-grid" id="grid-fija"></div>
+  </div>
+</div>
+
+<!-- CLIENT -->
+<div id="view-client" class="view">
+  <div class="client-cards-wrap" id="client-card-wrap"></div>
+  <button class="print-btn" onclick="window.print()">Imprimir / Guardar PDF</button>
+</div>
+
+<!-- COTIZACION -->
+<div id="view-cotiz" class="view">
+  <div class="cotiz-layout">
+
+    <!-- Formulario -->
+    <div class="cotiz-form-card">
+      <div class="cotiz-form-head">
+        <div class="cotiz-form-head-title">Cotización manual</div>
+        <div class="cotiz-form-head-sub">Ingresá las cuotas y generá la vista para el cliente</div>
+      </div>
+      <div class="cotiz-form-body">
+
+        <div class="cotiz-field">
+          <label class="cotiz-label">Línea de crédito</label>
+          <select class="cotiz-select" id="cq-linea" onchange="renderCotizPreview()">
+            <option value="uva0">UVA 0KM</option>
+            <option value="uvau">UVA Usados</option>
+            <option value="fij0">Fija 0KM</option>
+            <option value="fiju">Fija Usados</option>
+          </select>
+        </div>
+
+        <div class="cotiz-field">
+          <label class="cotiz-label">Monto solicitado (opcional)</label>
+          <input class="cotiz-text-input" id="cq-monto" type="text" placeholder="Ej: 3.725.000" oninput="fmtCotizMonto(this);renderCotizPreview()"/>
+        </div>
+
+        <div class="cotiz-divider"></div>
+
+        <div class="cotiz-field">
+          <label class="cotiz-label">Cuotas mensuales ($)</label>
+          <div class="cotiz-cuotas-grid">
+            <div class="cotiz-cuota-field">
+              <label class="cotiz-cuota-label">12 meses</label>
+              <input class="cotiz-cuota-input" id="cq-12" type="text" placeholder="0" oninput="fmtCuotaInput(this);renderCotizPreview()"/>
+            </div>
+            <div class="cotiz-cuota-field">
+              <label class="cotiz-cuota-label">18 meses</label>
+              <input class="cotiz-cuota-input" id="cq-18" type="text" placeholder="0" oninput="fmtCuotaInput(this);renderCotizPreview()"/>
+            </div>
+            <div class="cotiz-cuota-field">
+              <label class="cotiz-cuota-label">24 meses</label>
+              <input class="cotiz-cuota-input" id="cq-24" type="text" placeholder="0" oninput="fmtCuotaInput(this);renderCotizPreview()"/>
+            </div>
+            <div class="cotiz-cuota-field">
+              <label class="cotiz-cuota-label">36 meses</label>
+              <input class="cotiz-cuota-input" id="cq-36" type="text" placeholder="0" oninput="fmtCuotaInput(this);renderCotizPreview()"/>
+            </div>
+            <div class="cotiz-cuota-field">
+              <label class="cotiz-cuota-label">48 meses</label>
+              <input class="cotiz-cuota-input" id="cq-48" type="text" placeholder="0" oninput="fmtCuotaInput(this);renderCotizPreview()"/>
+            </div>
+            <div class="cotiz-cuota-field">
+              <label class="cotiz-cuota-label">60 meses</label>
+              <input class="cotiz-cuota-input" id="cq-60" type="text" placeholder="0" oninput="fmtCuotaInput(this);renderCotizPreview()"/>
+            </div>
+          </div>
+        </div>
+
+        <div class="cotiz-divider"></div>
+
+        <div class="cotiz-action-row">
+          <button class="cotiz-btn cotiz-btn-secondary" onclick="limpiarCotiz()">Limpiar</button>
+          <button class="cotiz-btn cotiz-btn-primary" onclick="imprimirCotiz()">Imprimir / PDF</button>
+        </div>
+        <div class="cotiz-action-row" style="margin-top:8px">
+          <button class="cotiz-btn cotiz-btn-excel" onclick="exportarExcel()">Exportar Excel</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="cotiz-preview-wrap">
+      <div id="cotiz-preview-area">
+        <div class="cotiz-preview-empty" id="cotiz-empty-msg">
+          <div class="cotiz-preview-empty-icon">📋</div>
+          <div class="cotiz-preview-empty-text">Completá los datos para ver la vista previa</div>
+        </div>
+        <div id="cotiz-card-container" style="display:none"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const PLAZOS = [12, 18, 24, 36, 48, 60];
+
+const LINES = [
+  { id:'uva0', name:'UVA 0KM',    sub:'CUOTA UVA 0KM',    tnaLabel:'25,9% TNA', type:'uva',
+    cohef:{12:null,18:72.166,24:58.358,36:44.772,48:38.197,60:null} },
+  { id:'uvau', name:'UVA Usados', sub:'CUOTA UVA USADOS',  tnaLabel:'25,9% TNA', type:'uva',
+    cohef:{12:99.947,18:72.165,24:58.357,36:44.769,48:38.192,60:null} },
+  { id:'fij0', name:'Fija 0KM',   sub:'CUOTA FIJA 0KM',   tnaLabel:'55,9% TNA', type:'fija',
+    cohef:{12:null,18:null,24:null,36:67.588,48:62.267,60:59.608} },
+  { id:'fiju', name:'Fija Usados',sub:'CUOTA FIJA USADOS', tnaLabel:'55,9% TNA', type:'fija',
+    cohef:{12:null,18:95.241,24:82.134,36:70.034,48:64.866,60:62.327} },
+];
+
+let comision = 0.06, bruto = 0;
+
+function parseNum(s){ return parseFloat((s||'').replace(/\./g,'').replace(',','.')) || 0; }
+function fmtPeso(n){ return '$\u202f' + Math.round(n).toLocaleString('es-AR'); }
+function fmtMonto(inp){
+  let raw = inp.value.replace(/\D/g,'');
+  if(raw) inp.value = parseInt(raw,10).toLocaleString('es-AR');
+}
+function fmtCotizMonto(inp){
+  let raw = inp.value.replace(/\D/g,'');
+  if(raw) inp.value = parseInt(raw,10).toLocaleString('es-AR');
+}
+function fmtCuotaInput(inp){
+  let raw = inp.value.replace(/\D/g,'');
+  if(raw) inp.value = parseInt(raw,10).toLocaleString('es-AR');
+}
+
+function switchView(v){
+  ['admin','client','cotiz'].forEach(x=>{
+    document.getElementById('view-'+x).classList.remove('active');
+    document.getElementById('btn-'+x).classList.remove('active');
+  });
+  document.getElementById('view-'+v).classList.add('active');
+  document.getElementById('btn-'+v).classList.add('active');
+  if(v==='client') renderClient();
+  if(v==='cotiz') renderCotizPreview();
+}
+
+function setComision(btn){
+  comision = parseFloat(btn.dataset.v);
+  document.querySelectorAll('.com-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderAll();
+}
+
+function renderGroup(lines, gridId){
+  document.getElementById(gridId).innerHTML = lines.map(l=>`
+    <div class="line-group">
+      <div class="line-group-head ${l.type}">
+        <span class="lg-name">${l.name}</span>
+        <span class="lg-tna tna-${l.type}">${l.tnaLabel}</span>
+      </div>
+      <table class="rtable">
+        <thead><tr><th>Plazo</th><th>Coef.</th><th>${l.type==='uva'?'Cuota inicial est.':'Cuota mensual'}</th></tr></thead>
+        <tbody>${PLAZOS.map(p=>`<tr>
+          <td>${p} cuotas</td>
+          <td class="cohef-td">${l.cohef[p]?l.cohef[p].toFixed(3):'—'}</td>
+          <td class="cuota-td">${bruto>0&&l.cohef[p]?fmtPeso(bruto*l.cohef[p]/1000):'—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      ${l.type==='uva'?'<div class="uva-note-bar">⚠ Cuotas UVA se ajustan mensualmente por CER (inflación). Los valores son estimados iniciales.</div>':''}
+    </div>`).join('');
+}
+
+function renderLines(){
+  renderGroup([LINES[0], LINES[1]], 'grid-uva');
+  renderGroup([LINES[2], LINES[3]], 'grid-fija');
+}
+
+function renderAll(){
+  bruto = parseNum(document.getElementById('monto').value);
+  document.getElementById('cobro').textContent = bruto>0?fmtPeso(bruto*comision):'—';
+  document.getElementById('neto').textContent  = bruto>0?fmtPeso(bruto*(1-comision)):'—';
+  renderLines();
+}
+
+function renderClient(){
+  const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const clientOrder = [LINES[0], LINES[2], LINES[1], LINES[3]];
+  document.getElementById('client-card-wrap').innerHTML = clientOrder.map(l=>`
+    <div class="client-card">
+      <div class="client-header">
+        <div style="position:absolute;top:7px;right:10px;font-size:9px;color:rgba(255,255,255,.5)">${today}</div>
+        <div class="bank-logo">BANCO SANTANDER</div>
+        <div class="est-title">ESTIMADOR DE COSTOS SANTANDER</div>
+      </div>
+      <div class="client-linea-head">
+        <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px">Línea de crédito</div>
+        <div class="client-linea-badge badge-${l.type}">${l.sub}</div>
+      </div>
+      <div class="client-section">
+        <div class="client-field">
+          <div class="cf-label">Monto final a cliente</div>
+          <div class="cf-val">${bruto>0?fmtPeso(bruto*(1-comision)):'—'}</div>
+        </div>
+        <div class="client-field">
+          <div class="cf-label">Monto crédito a solicitar</div>
+          <div class="cf-val">${bruto>0?fmtPeso(bruto):'—'}</div>
+        </div>
+      </div>
+      <div class="client-note ${l.type}">
+        ${l.type==='uva'
+          ? '⚠ Las cuotas UVA se ajustan por inflación (CER). Los valores son cuotas iniciales estimadas. Plazo de 12 a 60 meses se corrobora al momento de solicitar el crédito la disponibilidad máxima del cliente determinado por valor cuota e ingresos.'
+          : 'Plazo de 12 a 60 meses se corrobora al momento de solicitar el crédito la disponibilidad máxima del cliente determinado por valor cuota e ingresos.'}
+      </div>
+      <div class="client-table-head">
+        <span>PLAZO EN MESES</span>
+        <span>${l.type==='uva'?'CUOTA INICIAL EST.':'MONTO CUOTA APROX.'}</span>
+      </div>
+      ${PLAZOS.filter(p=>l.cohef[p]).map(p=>`<div class="client-row">
+        <span class="cr-plazo">${p}</span>
+        <span class="cr-cuota">${bruto>0?fmtPeso(bruto*l.cohef[p]/1000):'—'}</span>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+/* ===== COTIZACION ===== */
+function getCotizData(){
+  const lineaId = document.getElementById('cq-linea').value;
+  const linea = LINES.find(l=>l.id===lineaId) || LINES[0];
+  const montoRaw = document.getElementById('cq-monto').value;
+  const monto = parseNum(montoRaw);
+  const cuotas = {};
+  PLAZOS.forEach(p=>{
+    const v = parseNum(document.getElementById('cq-'+p).value);
+    cuotas[p] = v > 0 ? v : null;
+  });
+  return { linea, monto, cuotas };
+}
+
+function hasAnyCuota(cuotas){
+  return PLAZOS.some(p => cuotas[p] !== null);
+}
+
+function renderCotizPreview(){
+  const { linea, monto, cuotas } = getCotizData();
+  const container = document.getElementById('cotiz-card-container');
+  const emptyMsg  = document.getElementById('cotiz-empty-msg');
+
+  if(!hasAnyCuota(cuotas)){
+    container.style.display = 'none';
+    emptyMsg.style.display  = 'block';
+    return;
+  }
+  emptyMsg.style.display  = 'none';
+  container.style.display = 'block';
+
+  const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const tieneNeto = monto > 0;
+
+  container.innerHTML = `
+    <div class="cotiz-preview-card" id="cotiz-printable">
+      <div class="cq-header">
+        <div class="cq-header-date">${today}</div>
+        <div class="cq-bank-logo">BANCO SANTANDER</div>
+        <div class="cq-bank-sub">COTIZACIÓN</div>
+      </div>
+      <div class="cq-badge-row">
+        <div class="cq-badge-label">Línea de crédito</div>
+        <div class="cq-linea-badge badge-${linea.type}">${linea.sub}</div>
+      </div>
+      ${tieneNeto ? `
+      <div class="cq-montos-row">
+        <div class="cq-monto-field">
+          <div class="cq-monto-label">Monto a solicitar</div>
+          <div class="cq-monto-val">${fmtPeso(monto)}</div>
+        </div>
+        <div class="cq-monto-field">
+          <div class="cq-monto-label">Lo que recibe el cliente</div>
+          <div class="cq-monto-val">${fmtPeso(monto * (1 - comision))}</div>
+        </div>
+      </div>` : ''}
+      <div class="cq-note ${linea.type}">
+        ${linea.type==='uva'
+          ? '⚠ Las cuotas UVA se ajustan por inflación (CER). Los valores son cuotas iniciales estimadas. Plazo de 12 a 60 meses se corrobora al momento de solicitar el crédito.'
+          : 'Plazo de 12 a 60 meses se corrobora al momento de solicitar el crédito la disponibilidad máxima del cliente determinado por valor cuota e ingresos.'}
+      </div>
+      <div class="cq-table-head">
+        <span>PLAZO EN MESES</span>
+        <span>${linea.type==='uva'?'CUOTA INICIAL EST.':'MONTO CUOTA APROX.'}</span>
+      </div>
+      ${PLAZOS.filter(p=>cuotas[p]).map(p=>`
+      <div class="cq-row">
+        <span class="cq-plazo">${p}</span>
+        <span class="cq-cuota-val">${fmtPeso(cuotas[p])}</span>
+      </div>`).join('')}
+      <div class="cq-footer">
+        <div class="cq-footer-text">Valores orientativos. Sujeto a aprobación crediticia. Simulador Santander Prendarios.</div>
+      </div>
+    </div>
+  `;
+}
+
+function limpiarCotiz(){
+  document.getElementById('cq-monto').value = '';
+  PLAZOS.forEach(p=>{ document.getElementById('cq-'+p).value=''; });
+  renderCotizPreview();
+}
+
+function imprimirCotiz(){
+  const card = document.getElementById('cotiz-printable');
+  if(!card){ alert('Completá al menos una cuota para imprimir.'); return; }
+  const w = window.open('','_blank','width=520,height=720');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Cotización Galicia</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;padding:20px}
+    ${document.querySelector('style').innerText}
+  </style></head><body>`);
+  w.document.write(card.outerHTML);
+  w.document.write(`</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ w.print(); }, 400);
+}
+
+function exportarExcel(){
+  const { linea, monto, cuotas } = getCotizData();
+  if(!hasAnyCuota(cuotas)){ alert('Completá al menos una cuota para exportar.'); return; }
+  const today = new Date().toLocaleDateString('es-AR');
+
+  let rows = [
+    ['BANCO SANTANDER - COTIZACIÓN PRENDARIO'],
+    ['Línea:', linea.name + ' (' + linea.tnaLabel + ')'],
+    ['Fecha:', today],
+  ];
+  if(monto > 0) rows.push(['Monto solicitado:', fmtPeso(monto)]);
+  rows.push([]);
+  rows.push(['Plazo (meses)', 'Cuota mensual ($)']);
+  PLAZOS.forEach(p=>{
+    rows.push([p, cuotas[p] ? Math.round(cuotas[p]).toLocaleString('es-AR') : '—']);
+  });
+  rows.push([]);
+  rows.push(['Valores orientativos. Sujeto a aprobación crediticia.']);
+
+  const csv = rows.map(r => r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const bom  = '\uFEFF';
+  const blob = new Blob([bom + csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = 'cotizacion_santander_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+renderAll();
+</script>
+</div>
+</body>
+</html>
