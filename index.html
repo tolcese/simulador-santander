@@ -314,7 +314,7 @@ const LINES = [
   { id:'fij0', name:'Fija 0KM',   sub:'CUOTA FIJA 0KM',   tnaLabel:'55,9% TNA', type:'fija',
     cohef:{12:null,18:null,24:null,36:67.588,48:62.267,60:59.608} },
   { id:'fiju', name:'Fija Usados',sub:'CUOTA FIJA USADOS', tnaLabel:'55,9% TNA', type:'fija',
-    cohef:{12:null,18:95.241,24:82.134,36:70.034,48:64.866,60:62.327} },
+    cohef:{12:null,18:93.066,24:null,36:67.587,48:62.267,60:null} },
 ];
 
 let comision = 0.06, bruto = 0;
@@ -511,7 +511,7 @@ function imprimirCotiz(){
   if(!card){ alert('Completá al menos una cuota para imprimir.'); return; }
   const w = window.open('','_blank','width=520,height=720');
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-  <title>Cotización Galicia</title>
+  <title>Cotización Santander</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:'Segoe UI',Arial,sans-serif;background:#fff;padding:20px}
