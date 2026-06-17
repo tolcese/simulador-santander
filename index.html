@@ -48,6 +48,10 @@
   .lg-tna{font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
   .tna-uva{background:#fff0f0;color:#EC0000;border:1px solid #f5c0c0}
   .tna-fija{background:#e8e8e8;color:#333;border:1px solid #ccc}
+  .tna-toggle{display:flex;gap:4px}
+  .tna-opt{padding:3px 9px;border:1px solid #ccc;border-radius:14px;background:#fff;color:#666;font-size:11px;font-weight:600;cursor:pointer;transition:.15s}
+  .tna-opt:hover{border-color:#EC0000;color:#EC0000}
+  .tna-opt.active{background:#EC0000;border-color:#EC0000;color:#fff}
   .rtable{width:100%;border-collapse:collapse}
   .rtable th{font-size:10px;color:#999;font-weight:600;text-align:right;padding:7px 14px;border-bottom:1px solid #f0f0f0;text-transform:uppercase;letter-spacing:.05em}
   .rtable th:first-child{text-align:left}
@@ -311,11 +315,27 @@ const LINES = [
     cohef:{12:null,18:72.166,24:58.358,36:44.772,48:38.197,60:null} },
   { id:'uvau', name:'UVA Usados', sub:'CUOTA UVA USADOS',  tnaLabel:'25,9% TNA', type:'uva',
     cohef:{12:99.947,18:72.165,24:58.357,36:44.769,48:38.192,60:null} },
-  { id:'fij0', name:'Fija 0KM',   sub:'CUOTA FIJA 0KM',   tnaLabel:'55,9% TNA', type:'fija',
-    cohef:{12:null,18:null,24:null,36:67.588,48:62.267,60:59.608} },
-  { id:'fiju', name:'Fija Usados',sub:'CUOTA FIJA USADOS', tnaLabel:'55,9% TNA', type:'fija',
-    cohef:{12:null,18:93.066,24:79.866,36:67.587,48:62.267,60:null} },
+  { id:'fij0', name:'Fija 0KM',   sub:'CUOTA FIJA 0KM',   type:'fija',
+    activeTna: '55.9',
+    tnaOptions:{
+      '58.9':{12:null,18:null,24:null,36:null,48:null,60:null},
+      '55.9':{12:null,18:null,24:null,36:67.588,48:62.267,60:59.608}
+    } },
+  { id:'fiju', name:'Fija Usados',sub:'CUOTA FIJA USADOS', type:'fija',
+    activeTna: '55.9',
+    tnaOptions:{
+      '58.9':{12:null,18:95.241,24:82.134,36:70.034,48:64.866,60:62.327},
+      '55.9':{12:null,18:93.066,24:79.866,36:67.587,48:62.267,60:null}
+    } },
 ];
+
+// Helpers para líneas fija con TNA seleccionable
+function getCohef(linea){
+  return linea.type==='fija' ? linea.tnaOptions[linea.activeTna] : linea.cohef;
+}
+function getTnaLabel(linea){
+  return linea.type==='fija' ? (linea.activeTna==='58.9'?'58,9% TNA':'55,9% TNA') : linea.tnaLabel;
+}
 
 let comision = 0.06, bruto = 0;
 
@@ -353,22 +373,38 @@ function setComision(btn){
 }
 
 function renderGroup(lines, gridId){
-  document.getElementById(gridId).innerHTML = lines.map(l=>`
+  document.getElementById(gridId).innerHTML = lines.map(l=>{
+    const cohef = getCohef(l);
+    const tnaLabel = getTnaLabel(l);
+    const tnaSelector = l.type==='fija' ? `
+      <div class="tna-toggle">
+        <button class="tna-opt ${l.activeTna==='58.9'?'active':''}" onclick="setTna('${l.id}','58.9')">58,9%</button>
+        <button class="tna-opt ${l.activeTna==='55.9'?'active':''}" onclick="setTna('${l.id}','55.9')">55,9%</button>
+      </div>` : `<span class="lg-tna tna-${l.type}">${tnaLabel}</span>`;
+    return `
     <div class="line-group">
       <div class="line-group-head ${l.type}">
         <span class="lg-name">${l.name}</span>
-        <span class="lg-tna tna-${l.type}">${l.tnaLabel}</span>
+        ${tnaSelector}
       </div>
       <table class="rtable">
         <thead><tr><th>Plazo</th><th>Coef.</th><th>${l.type==='uva'?'Cuota inicial est.':'Cuota mensual'}</th></tr></thead>
         <tbody>${PLAZOS.map(p=>`<tr>
           <td>${p} cuotas</td>
-          <td class="cohef-td">${l.cohef[p]?l.cohef[p].toFixed(3):'—'}</td>
-          <td class="cuota-td">${bruto>0&&l.cohef[p]?fmtPeso(bruto*l.cohef[p]/1000):'—'}</td>
+          <td class="cohef-td">${cohef[p]?cohef[p].toFixed(3):'—'}</td>
+          <td class="cuota-td">${bruto>0&&cohef[p]?fmtPeso(bruto*cohef[p]/1000):'—'}</td>
         </tr>`).join('')}</tbody>
       </table>
       ${l.type==='uva'?'<div class="uva-note-bar">⚠ Cuotas UVA se ajustan mensualmente por CER (inflación). Los valores son estimados iniciales.</div>':''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
+}
+
+function setTna(lineaId, tna){
+  const linea = LINES.find(l=>l.id===lineaId);
+  if(!linea) return;
+  linea.activeTna = tna;
+  renderAll();
 }
 
 function renderLines(){
@@ -386,7 +422,10 @@ function renderAll(){
 function renderClient(){
   const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
   const clientOrder = [LINES[0], LINES[2], LINES[1], LINES[3]];
-  document.getElementById('client-card-wrap').innerHTML = clientOrder.map(l=>`
+  document.getElementById('client-card-wrap').innerHTML = clientOrder.map(l=>{
+    const cohef = getCohef(l);
+    const tnaLabel = getTnaLabel(l);
+    return `
     <div class="client-card">
       <div class="client-header">
         <div style="position:absolute;top:7px;right:10px;font-size:9px;color:rgba(255,255,255,.5)">${today}</div>
@@ -396,6 +435,7 @@ function renderClient(){
       <div class="client-linea-head">
         <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px">Línea de crédito</div>
         <div class="client-linea-badge badge-${l.type}">${l.sub}</div>
+        ${l.type==='fija'?`<div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:4px">${tnaLabel}</div>`:''}
       </div>
       <div class="client-section">
         <div class="client-field">
@@ -416,11 +456,12 @@ function renderClient(){
         <span>PLAZO EN MESES</span>
         <span>${l.type==='uva'?'CUOTA INICIAL EST.':'MONTO CUOTA APROX.'}</span>
       </div>
-      ${PLAZOS.filter(p=>l.cohef[p]).map(p=>`<div class="client-row">
+      ${PLAZOS.filter(p=>cohef[p]).map(p=>`<div class="client-row">
         <span class="cr-plazo">${p}</span>
-        <span class="cr-cuota">${bruto>0?fmtPeso(bruto*l.cohef[p]/1000):'—'}</span>
+        <span class="cr-cuota">${bruto>0?fmtPeso(bruto*cohef[p]/1000):'—'}</span>
       </div>`).join('')}
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 /* ===== COTIZACION ===== */
@@ -531,7 +572,7 @@ function exportarExcel(){
 
   let rows = [
     ['BANCO SANTANDER - COTIZACIÓN PRENDARIO'],
-    ['Línea:', linea.name + ' (' + linea.tnaLabel + ')'],
+    ['Línea:', linea.name + ' (' + getTnaLabel(linea) + ')'],
     ['Fecha:', today],
   ];
   if(monto > 0) rows.push(['Monto solicitado:', fmtPeso(monto)]);
