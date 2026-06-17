@@ -81,6 +81,7 @@
   .client-note.uva{background:#fff0f0;color:#EC0000;font-style:italic}
   .client-note.fija{color:#aaa}
   .client-table-head{display:grid;grid-template-columns:1fr 1fr;background:#EC0000}
+  .client-table-head.head-editable{grid-template-columns:1fr 1fr 26px}
   .client-table-head span{font-size:8px;font-weight:700;color:#fff;letter-spacing:.06em;text-transform:uppercase;padding:5px 10px;text-align:center}
   .client-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #f0f0f0}
   .client-row:last-child{border-bottom:none}
@@ -88,6 +89,11 @@
   .cr-plazo{font-weight:600;color:#555;font-size:10px}
   .cr-cuota{font-family:'Courier New',monospace;font-weight:800;color:#1a1a2e}
   .client-row:nth-child(even){background:#fafafa}
+  .client-row-editable{grid-template-columns:1fr 1fr 26px}
+  .cr-remove{display:flex;align-items:center;justify-content:center;color:#ccc;font-size:12px;font-weight:700;cursor:pointer;transition:.15s;padding:5px 6px!important}
+  .cr-remove:hover{color:#EC0000;background:#fff0f0}
+  .cr-restore{text-align:center;font-size:10px;color:#EC0000;background:#fff0f0;padding:8px;cursor:pointer;font-weight:600;border-top:1px solid #f5c0c0}
+  .cr-restore:hover{background:#ffe0e0}
   .print-btn{display:block;margin:10px 0 0;padding:8px 20px;background:#EC0000;border:none;border-radius:10px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;transition:.15s}
   .print-btn:hover{background:#c00000}
 
@@ -175,6 +181,7 @@
   </div>
   <div class="nav-sep"></div>
   <button class="nav-btn active" id="btn-admin" onclick="switchView('admin')">Panel de tasas</button>
+  <button class="nav-btn" id="btn-preclient" onclick="switchView('preclient')">Pre Vista Cliente</button>
   <button class="nav-btn" id="btn-client" onclick="switchView('client')">Vista cliente</button>
   <button class="nav-btn" id="btn-cotiz" onclick="switchView('cotiz')">Cotización</button>
 </div>
@@ -213,6 +220,12 @@
     <div class="section-label">Línea ARS (Fija)</div>
     <div class="lines-grid" id="grid-fija"></div>
   </div>
+</div>
+
+<!-- PRE VISTA CLIENTE -->
+<div id="view-preclient" class="view">
+  <div class="client-cards-wrap" id="preclient-card-wrap"></div>
+  <button class="gen-btn" style="max-width:260px;margin:14px auto 0;display:block" onclick="switchView('client')">Vista Cliente →</button>
 </div>
 
 <!-- CLIENT -->
@@ -337,6 +350,20 @@ function getTnaLabel(linea){
   return linea.type==='fija' ? (linea.activeTna==='58.9'?'58,9% TNA':'55,9% TNA') : linea.tnaLabel;
 }
 
+// Plazos eliminados por línea (Pre Vista Cliente). Ej: { uva0:[12,60], fiju:[18] }
+const removedPlazos = { uva0:[], uvau:[], fij0:[], fiju:[] };
+function visiblePlazos(lineId){
+  return PLAZOS.filter(p => !removedPlazos[lineId].includes(p));
+}
+function quitarPlazo(lineId, p){
+  if(!removedPlazos[lineId].includes(p)) removedPlazos[lineId].push(p);
+  renderPreClient();
+}
+function restaurarPlazos(lineId){
+  removedPlazos[lineId] = [];
+  renderPreClient();
+}
+
 let comision = 0.06, bruto = 0;
 
 function parseNum(s){ return parseFloat((s||'').replace(/\./g,'').replace(',','.')) || 0; }
@@ -355,12 +382,13 @@ function fmtCuotaInput(inp){
 }
 
 function switchView(v){
-  ['admin','client','cotiz'].forEach(x=>{
+  ['admin','preclient','client','cotiz'].forEach(x=>{
     document.getElementById('view-'+x).classList.remove('active');
     document.getElementById('btn-'+x).classList.remove('active');
   });
   document.getElementById('view-'+v).classList.add('active');
   document.getElementById('btn-'+v).classList.add('active');
+  if(v==='preclient') renderPreClient();
   if(v==='client') renderClient();
   if(v==='cotiz') renderCotizPreview();
 }
@@ -419,13 +447,14 @@ function renderAll(){
   renderLines();
 }
 
-function renderClient(){
-  const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-  const clientOrder = [LINES[0], LINES[2], LINES[1], LINES[3]];
-  document.getElementById('client-card-wrap').innerHTML = clientOrder.map(l=>{
-    const cohef = getCohef(l);
-    const tnaLabel = getTnaLabel(l);
-    return `
+function buildClientCard(l, today, opts){
+  opts = opts || {};
+  const editable = !!opts.editable;
+  const cohef = getCohef(l);
+  const tnaLabel = getTnaLabel(l);
+  const plazosToShow = editable ? PLAZOS.filter(p=>cohef[p]) : visiblePlazos(l.id).filter(p=>cohef[p]);
+  const hayOcultos = removedPlazos[l.id].length > 0;
+  return `
     <div class="client-card">
       <div class="client-header">
         <div style="position:absolute;top:7px;right:10px;font-size:9px;color:rgba(255,255,255,.5)">${today}</div>
@@ -452,16 +481,32 @@ function renderClient(){
           ? '⚠ Las cuotas UVA se ajustan por inflación (CER). Los valores son cuotas iniciales estimadas. Plazo de 12 a 60 meses se corrobora al momento de solicitar el crédito la disponibilidad máxima del cliente determinado por valor cuota e ingresos.'
           : 'Plazo de 12 a 60 meses se corrobora al momento de solicitar el crédito la disponibilidad máxima del cliente determinado por valor cuota e ingresos.'}
       </div>
-      <div class="client-table-head">
+      <div class="client-table-head${editable?' head-editable':''}">
         <span>PLAZO EN MESES</span>
         <span>${l.type==='uva'?'CUOTA INICIAL EST.':'MONTO CUOTA APROX.'}</span>
+        ${editable?'<span style="width:26px"></span>':''}
       </div>
-      ${PLAZOS.filter(p=>cohef[p]).map(p=>`<div class="client-row">
+      ${plazosToShow.map(p=>`<div class="client-row${editable?' client-row-editable':''}">
         <span class="cr-plazo">${p}</span>
         <span class="cr-cuota">${bruto>0?fmtPeso(bruto*cohef[p]/1000):'—'}</span>
+        ${editable?`<span class="cr-remove" onclick="quitarPlazo('${l.id}',${p})" title="Quitar este plazo">✕</span>`:''}
       </div>`).join('')}
+      ${editable && hayOcultos ? `<div class="cr-restore" onclick="restaurarPlazos('${l.id}')">↺ Restaurar plazos ocultos (${removedPlazos[l.id].length})</div>` : ''}
     </div>`;
-  }).join('');
+}
+
+function renderClient(){
+  const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const clientOrder = [LINES[0], LINES[2], LINES[1], LINES[3]];
+  document.getElementById('client-card-wrap').innerHTML =
+    clientOrder.map(l=>buildClientCard(l, today, {editable:false})).join('');
+}
+
+function renderPreClient(){
+  const today = new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+  const clientOrder = [LINES[0], LINES[2], LINES[1], LINES[3]];
+  document.getElementById('preclient-card-wrap').innerHTML =
+    clientOrder.map(l=>buildClientCard(l, today, {editable:true})).join('');
 }
 
 /* ===== COTIZACION ===== */
