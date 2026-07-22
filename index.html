@@ -61,6 +61,8 @@
   .rtable tr:last-child td{border-bottom:none}
   .cohef-td{font-family:'Courier New',monospace;font-size:11px;color:#bbb}
   .cuota-td{font-family:'Courier New',monospace;font-size:13px;font-weight:700;color:#1a1a2e}
+  .manual-cuota-inp{width:100%;border:none;border-bottom:1.5px solid #EC0000;background:transparent;font-family:'Courier New',monospace;font-size:12px;font-weight:700;color:#EC0000;text-align:right;outline:none;padding:2px 4px}
+  .manual-cuota-inp::placeholder{color:#ccc;font-weight:400;font-size:11px}
   .uva-note-bar{font-size:10px;color:#EC0000;padding:6px 14px;background:#fff0f0;border-top:1px solid #f5c0c0;font-style:italic}
 
   /* CLIENT */
@@ -364,7 +366,30 @@ function getTnaLabel(linea){
   return linea.activeTna.replace('.',',') + '% TNA';
 }
 
-// Plazos eliminados por línea (Pre Vista Cliente). Ej: { uva0:[12,60], fiju:[18] }
+// Cuotas ingresadas manualmente en el panel (para plazos sin coeficiente)
+// estructura: { lineaId: { tna: { plazo: valorNumerico } } }
+const manualCuotas = {};
+function getManual(lineaId, tna, p){
+  return (manualCuotas[lineaId] && manualCuotas[lineaId][tna] && manualCuotas[lineaId][tna][p]) || null;
+}
+function setManual(lineaId, tna, p, val){
+  if(!manualCuotas[lineaId]) manualCuotas[lineaId] = {};
+  if(!manualCuotas[lineaId][tna]) manualCuotas[lineaId][tna] = {};
+  manualCuotas[lineaId][tna][p] = val;
+}
+// Devuelve la cuota a mostrar: calculada por coeficiente, o manual, o null
+function getCuota(l, p){
+  const cohef = getCohef(l);
+  if(cohef[p] && bruto > 0) return bruto * cohef[p] / 1000;
+  const manual = getManual(l.id, l.activeTna, p);
+  return manual || null;
+}
+function onManualCuota(lineaId, tna, p, inp){
+  const raw = inp.value.replace(/\./g,'').replace(',','.');
+  const val = parseFloat(raw) || 0;
+  setManual(lineaId, tna, p, val > 0 ? val : null);
+  fmtCuotaInput(inp);
+}
 const removedPlazos = { uva0:[], uvau:[], fij0:[], fiju:[] };
 function visiblePlazos(lineId){
   return PLAZOS.filter(p => !removedPlazos[lineId].includes(p));
@@ -431,11 +456,22 @@ function renderGroup(lines, gridId){
       </div>
       <table class="rtable">
         <thead><tr><th>Plazo</th><th>Coef.</th><th>${l.type==='uva'?'Cuota inicial est.':'Cuota mensual'}</th></tr></thead>
-        <tbody>${PLAZOS.map(p=>`<tr>
+        <tbody>${PLAZOS.map(p=>{
+          const tieneCoef = !!cohef[p];
+          const cuotaCalc = tieneCoef && bruto > 0 ? fmtPeso(bruto*cohef[p]/1000) : null;
+          const manual = getManual(l.id, l.activeTna, p);
+          const cuotaDisplay = cuotaCalc || (manual ? fmtPeso(manual) : null);
+          const inputVal = manual ? Math.round(manual).toLocaleString('es-AR') : '';
+          return `<tr>
           <td>${p} cuotas</td>
-          <td class="cohef-td">${cohef[p]?cohef[p].toFixed(3):'—'}</td>
-          <td class="cuota-td">${bruto>0&&cohef[p]?fmtPeso(bruto*cohef[p]/1000):'—'}</td>
-        </tr>`).join('')}</tbody>
+          <td class="cohef-td">${tieneCoef ? cohef[p].toFixed(3) : '—'}</td>
+          <td class="cuota-td">${tieneCoef
+            ? (cuotaCalc || '—')
+            : `<input class="manual-cuota-inp" type="text" placeholder="ingresar" value="${inputVal}"
+                oninput="onManualCuota('${l.id}','${l.activeTna}',${p},this)"
+                onblur="onManualCuota('${l.id}','${l.activeTna}',${p},this)">`
+          }</td>
+        </tr>`;}).join('')}</tbody>
       </table>
       ${l.type==='uva'?'<div class="uva-note-bar">⚠ Cuotas UVA se ajustan mensualmente por CER (inflación). Los valores son estimados iniciales.</div>':''}
     </div>`;
@@ -466,7 +502,12 @@ function buildClientCard(l, today, opts){
   const editable = !!opts.editable;
   const cohef = getCohef(l);
   const tnaLabel = getTnaLabel(l);
-  const plazosToShow = editable ? PLAZOS.filter(p=>cohef[p]) : visiblePlazos(l.id).filter(p=>cohef[p]);
+  // En pre-vista: todos los plazos con coef o manual, respetando removedPlazos
+  // En vista final: igual pero sin los removedPlazos
+  const todosConDato = PLAZOS.filter(p => cohef[p] || getManual(l.id, l.activeTna, p));
+  const plazosToShow = editable
+    ? todosConDato
+    : todosConDato.filter(p => !removedPlazos[l.id].includes(p));
   const hayOcultos = removedPlazos[l.id].length > 0;
   return `
     <div class="client-card">
@@ -478,7 +519,7 @@ function buildClientCard(l, today, opts){
       <div class="client-linea-head">
         <div style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:5px">Línea de crédito</div>
         <div class="client-linea-badge badge-${l.type}">${l.sub}</div>
-        ${l.type==='fija'?`<div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:4px">${tnaLabel}</div>`:''}
+        <div style="font-size:8px;color:rgba(255,255,255,.6);margin-top:4px">${tnaLabel}</div>
       </div>
       <div class="client-section">
         <div class="client-field">
@@ -500,11 +541,14 @@ function buildClientCard(l, today, opts){
         <span>${l.type==='uva'?'CUOTA INICIAL EST.':'MONTO CUOTA APROX.'}</span>
         ${editable?'<span style="width:26px"></span>':''}
       </div>
-      ${plazosToShow.map(p=>`<div class="client-row${editable?' client-row-editable':''}">
-        <span class="cr-plazo">${p}</span>
-        <span class="cr-cuota">${bruto>0?fmtPeso(bruto*cohef[p]/1000):'—'}</span>
-        ${editable?`<span class="cr-remove" onclick="quitarPlazo('${l.id}',${p})" title="Quitar este plazo">✕</span>`:''}
-      </div>`).join('')}
+      ${plazosToShow.map(p=>{
+        const cuota = getCuota(l, p);
+        return `<div class="client-row${editable?' client-row-editable':''}">
+          <span class="cr-plazo">${p}</span>
+          <span class="cr-cuota">${cuota ? fmtPeso(cuota) : '—'}</span>
+          ${editable?`<span class="cr-remove" onclick="quitarPlazo('${l.id}',${p})" title="Quitar este plazo">✕</span>`:''}
+        </div>`;
+      }).join('')}
       ${editable && hayOcultos ? `<div class="cr-restore" onclick="restaurarPlazos('${l.id}')">↺ Restaurar plazos ocultos (${removedPlazos[l.id].length})</div>` : ''}
     </div>`;
 }
