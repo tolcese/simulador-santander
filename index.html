@@ -325,30 +325,43 @@
 const PLAZOS = [12, 18, 24, 36, 48, 60];
 
 const LINES = [
-  { id:'uva0', name:'UVA 0KM',    sub:'CUOTA UVA 0KM',    tnaLabel:'25,9% TNA', type:'uva',
-    cohef:{12:null,18:72.166,24:58.358,36:44.772,48:38.197,60:null} },
-  { id:'uvau', name:'UVA Usados', sub:'CUOTA UVA USADOS',  tnaLabel:'25,9% TNA', type:'uva',
-    cohef:{12:99.947,18:72.165,24:58.357,36:44.769,48:38.192,60:null} },
-  { id:'fij0', name:'Fija 0KM',   sub:'CUOTA FIJA 0KM',   type:'fija',
-    activeTna: '55.9',
+  { id:'uva0', name:'UVA 0KM', sub:'CUOTA UVA 0KM', type:'uva',
+    activeTna:'25.9',
     tnaOptions:{
+      '23.9':{12:null,18:null,24:null,36:null,48:null,60:null},
+      '25.9':{12:null,18:72.166,24:58.358,36:44.772,48:38.197,60:null},
+      '26.9':{12:null,18:null,24:null,36:null,48:38.933,60:null},
+    }},
+  { id:'uvau', name:'UVA Usados', sub:'CUOTA UVA USADOS', type:'uva',
+    activeTna:'25.9',
+    tnaOptions:{
+      '23.9':{12:null,18:null,24:56.999,36:43.363,48:36.729,60:null},
+      '25.9':{12:99.947,18:72.165,24:58.357,36:44.769,48:38.192,60:null},
+      '26.9':{12:100.675,18:72.834,24:59.037,36:45.479,48:null,60:null},
+    }},
+  { id:'fij0', name:'Fija 0KM', sub:'CUOTA FIJA 0KM', type:'fija',
+    activeTna:'55.9',
+    tnaOptions:{
+      '53.9':{12:null,18:null,24:null,36:null,48:null,60:57.815},
+      '55.9':{12:null,18:null,24:null,36:67.588,48:62.267,60:59.608},
       '58.9':{12:null,18:null,24:null,36:null,48:null,60:null},
-      '55.9':{12:null,18:null,24:null,36:67.588,48:62.267,60:59.608}
-    } },
-  { id:'fiju', name:'Fija Usados',sub:'CUOTA FIJA USADOS', type:'fija',
-    activeTna: '55.9',
+    }},
+  { id:'fiju', name:'Fija Usados', sub:'CUOTA FIJA USADOS', type:'fija',
+    activeTna:'55.9',
     tnaOptions:{
+      '52.9':{12:null,18:null,24:null,36:null,48:59.699,60:56.919},
+      '55.9':{12:null,18:93.066,24:79.866,36:67.587,48:62.267,60:null},
       '58.9':{12:null,18:95.241,24:82.134,36:70.034,48:64.866,60:62.327},
-      '55.9':{12:null,18:93.066,24:79.866,36:67.587,48:62.267,60:null}
-    } },
+    }},
 ];
 
-// Helpers para líneas fija con TNA seleccionable
+// Helpers para líneas con TNA seleccionable
 function getCohef(linea){
-  return linea.type==='fija' ? linea.tnaOptions[linea.activeTna] : linea.cohef;
+  return linea.tnaOptions ? linea.tnaOptions[linea.activeTna] : linea.cohef;
 }
 function getTnaLabel(linea){
-  return linea.type==='fija' ? (linea.activeTna==='58.9'?'58,9% TNA':'55,9% TNA') : linea.tnaLabel;
+  if(!linea.tnaOptions) return linea.tnaLabel;
+  return linea.activeTna.replace('.',',') + '% TNA';
 }
 
 // Plazos eliminados por línea (Pre Vista Cliente). Ej: { uva0:[12,60], fiju:[18] }
@@ -405,10 +418,10 @@ function renderGroup(lines, gridId){
   document.getElementById(gridId).innerHTML = lines.map(l=>{
     const cohef = getCohef(l);
     const tnaLabel = getTnaLabel(l);
-    const tnaSelector = l.type==='fija' ? `
+    const tnaSelector = l.tnaOptions ? `
       <div class="tna-toggle">
-        <button class="tna-opt ${l.activeTna==='58.9'?'active':''}" onclick="setTna('${l.id}','58.9')">58,9%</button>
-        <button class="tna-opt ${l.activeTna==='55.9'?'active':''}" onclick="setTna('${l.id}','55.9')">55,9%</button>
+        ${Object.keys(l.tnaOptions).map(t=>`
+        <button class="tna-opt ${l.activeTna===t?'active':''}" onclick="setTna('${l.id}','${t}')">${t.replace('.',',')}%</button>`).join('')}
       </div>` : `<span class="lg-tna tna-${l.type}">${tnaLabel}</span>`;
     return `
     <div class="line-group">
